@@ -25,16 +25,16 @@ class AuthController extends Controller
     {
         $credentials = request(['email', 'password']);
         $validator = Validator::make($credentials, [
-            'email' => 'required|email',
+            'email' => 'required|email|unique:users',
             'password' => 'required'
         ]);
         if ($validator->fails()) {
             return ResponseFormatter::error([
                 'error' => $validator->errors()
-            ], 'Validation Error', 500);
+            ], 'Validation Error', 500);    
         }
         if (!$token = auth()->attempt($credentials)) {
-            throw new Exception('Unauthorized');
+            return ResponseFormatter::error(null, 'Unauthorized', 500);
         }
         return ResponseFormatter::success([
             'access_token' => $token,

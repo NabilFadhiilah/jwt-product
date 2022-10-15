@@ -8,11 +8,11 @@ use App\Helpers\ResponseFormatter;
 use Illuminate\Support\Facades\Validator;
 use App\Http\Requests\StoreCategoryProductRequest;
 use App\Http\Requests\UpdateCategoryProductRequest;
+use App\Http\Services\CategoryProductService;
 use GuzzleHttp\Psr7\Request;
 
 class CategoryProductController extends Controller
 {
-
     /**
      * Display a listing of the resource.
      *
@@ -24,7 +24,7 @@ class CategoryProductController extends Controller
         try {
             //code...
             if (!CategoryProduct::exists()) {
-                throw new Exception('Category Product not found');
+                throw new Exception('Category Product Not Exist');
             }
             return ResponseFormatter::success(
                 CategoryProduct::paginate(5),
@@ -56,7 +56,7 @@ class CategoryProductController extends Controller
         //
         $validator = Validator::make($request->all(), ['name' => 'required|unique:category_products|string|max:255']);
         if ($validator->fails()) {
-            return ResponseFormatter::error($validator->errors(), 'Validation Error');
+            return ResponseFormatter::error(['error'=>$validator->errors()], 'Validation Error');
         }
         $categoryProduct = CategoryProduct::create($request->all());
         return ResponseFormatter::success(
@@ -71,12 +71,13 @@ class CategoryProductController extends Controller
      * @param  \App\Models\CategoryProduct  $categoryProduct
      * @return \Illuminate\Http\Response
      */
-    public function show(CategoryProduct $categoryProduct)
+    public function show($id)
     {
         //
         try {
             //code...
-            if ($categoryProduct->findorFail($categoryProduct->id)) {
+            $categoryProduct = CategoryProduct::find($id);
+            if (!$categoryProduct) {
                 throw new Exception('Category Product not found');
             }
             return ResponseFormatter::success(

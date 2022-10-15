@@ -6,13 +6,19 @@ use Exception;
 use App\Models\Product;
 use App\Helpers\ResponseFormatter;
 use Illuminate\Support\Facades\DB;
+use App\Http\Services\ProductService;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use App\Http\Requests\StoreProductRequest;
 use App\Http\Requests\UpdateProductRequest;
-use GuzzleHttp\Psr7\Request;
 
 class ProductController extends Controller
 {
+    public function __construct(ProductService $productService)
+    {
+        $this->productService = $productService;
+    }
     /**
      * Display a listing of the resource.
      *
@@ -23,10 +29,8 @@ class ProductController extends Controller
         //
         try {
             //code...
-            if (!Product::exists()) {
-                throw new Exception('Product not found');
-            }
-            return ResponseFormatter::success(Product::paginate(15), 'Product Found');
+            $products = $this->productService->fetch();
+            return $products;
         } catch (Exception $error) {
             return ResponseFormatter::error(null, $error->getMessage(), 500);
         }
@@ -52,7 +56,7 @@ class ProductController extends Controller
     {
         //
         try {
-            $niceNames=[
+            $niceNames = [
                 'name' => 'Name',
                 'image' => 'Image',
                 'price' => 'Price',
@@ -68,24 +72,21 @@ class ProductController extends Controller
 
             $validator = Validator::make($request->all(), [
                 'name' => 'required|unique:products|string|max:255',
+                'price'=> 'required|numeric',
                 'image' => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
                 'product_category_id' => 'required|numeric',
             ], $messages, $niceNames);
 
-            if($validator->fails()){
-                return ResponseFormatter::error($validator->errors(), 'Validation Error');
+            if ($validator->fails()) {
+                return ResponseFormatter::error(['error'=>$validator->errors()], 'Validation Error');
             }
 
             if ($request->hasFile('image')) {
                 $path = $request->file('image')->store('public/product/images');
             }
 
-            $product = Product::create([
-                'name' => $request->name,
-                'image' => isset($path) ? $path : '',
-                'price' => $request->price,
-                'product_category_id' => $request->product_category_id,
-            ]);
+            $product = $this->productService->store($request, $path);
+
             if (!$product) {
                 throw new Exception('Product not created');
             }
@@ -105,8 +106,7 @@ class ProductController extends Controller
     {
         //
         try {
-            //code...
-            $product=Product::find($id);
+            $product = Product::find($id);
             if (!$product) {
                 throw new Exception('Product not found');
             }
@@ -134,9 +134,41 @@ class ProductController extends Controller
      * @param  \App\Models\Product  $product
      * @return \Illuminate\Http\Response
      */
-    public function update(UpdateProductRequest $request, Product $product)
+    public function update(Request $request, Product $product)
     {
         //
+        try {
+            $niceNames = [
+                'name' => 'Name',
+                'image' => 'Image',
+                'price' => 'Price',
+                'product_category_id' => 'Product Category Id',
+            ];
+
+            $messages = [
+                'required' => ':attribute is required',
+                'string' => ':attribute must be a string',
+                'max' => ':attribute must be less than :max',
+                'unique' => ':attribute already exists',
+            ];
+
+            $validator = Validator::make($request->all(), [
+                'name' => 'required|string|max:255',
+                'price'=> 'required|numeric',
+                'image' => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+                'product_category_id' => 'required|numeric',
+            ], $messages, $niceNames);
+
+            if ($validator->fails()) {
+                return ResponseFormatter::error(['error'=>$validator->errors()], 'Validation Error');
+            }
+
+            $product = $this->productService->update($request, $product);
+            
+            return ResponseFormatter::success($product, 'Product Updated');
+        } catch (Exception $error) {
+            return ResponseFormatter::error(null, $error->getMessage(), 500);
+        }
     }
 
     /**

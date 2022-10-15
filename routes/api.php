@@ -29,6 +29,7 @@ Route::group(['middleware' => 'api'], function ($router) {
         'index','store','update','destroy'
     ]);
     Route::get('/category-products/{id}', [CategoryProductController::class, 'show']);
+    
     Route::resource('products', ProductController::class)->only([
         'index','store','update','destroy'
     ]);
